@@ -1,0 +1,787 @@
+<html>
+  <head>
+	<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Secure Bookmarks</title>
+	
+    <script type="text/javascript" src="js/knockout-3.4.0.js"></script>
+	<script src="js/jquery-1.12.2.min.js"></script>
+	<script src="jquery-ui.js"></script>
+	<script src="js/jQuery.print.js"></script>
+	<script src="js/jszip.min.js"></script>
+	<script src="js/uikit.min.js"></script>
+	<script src="js/array_db.js"></script>
+	<script type="text/javascript" src="js/functions_cryptography.js"></script>
+	<script src="js/FileSaver.min.js"></script>
+	<link id="data-uikit-theme" rel="stylesheet" href="js/uikit.docs.min.css">
+	<link id="data-uikit-theme" rel="stylesheet" href="jquery-ui.css">
+	<style>
+	.dialogOverlay{
+		background-color: rgba(255,255,255,0.8);
+		top:0;
+		left:0;
+		width:100%;
+		height: 100%;
+		overflow:visible;
+		z-index:4; 	
+		position: fixed; 
+		display: block;
+	}
+	.dialogWrapper {
+		position:absolute;
+		visibility:hidden;
+		overflow:visible;
+		z-index:9999999999;
+		top:-2000px;
+		display: block; 
+		padding: 16px; 
+		opacity: 1;
+		transition: all 200ms;
+	}
+	.dialogHint {
+		line-height:16px;
+		border-width: 1px;   
+		border-color:#BBB;
+		padding:20px;
+		font-size: 12px;
+		font-family: Verdana, Arial;
+		border-radius:6px;
+		color:rgba(0,0,0,1); 
+		background:rgba(255,255,255,1);
+		box-shadow: 0 1px 8px rgba(0,0,0,1);
+		float:left;
+		border-style:solid;
+		position:relative;
+		overflow:hidden;
+		box-sizing:content-box;
+	}
+	.dialogInner{
+		top: auto; 
+		left: auto; 
+		transition: all 200ms; 
+		opacity: 1;
+		float:left;
+		position:relative;
+		width:auto;
+		height:auto;
+	}	
+	</style>
+	</head>
+  <body>
+<div id="dynamicDialog" style="display:none;">
+		<div class="dialogOverlay"></div>
+		<div class="dialogWrapper" style="visibility: visible;">
+			<div class="dialogHint">
+				<div class="dialogInner" >
+					<h3 class="uk-text-center">Message</h3>
+					<div id="dialogContent">
+							Loading
+					</div>
+				</div>
+			</div>
+		</div>
+</div>
+<h3 style="color:red">Dont save sensitive information,like Password or Credit Cards!!!</h3>
+<div class="uk-grid"><!-- MAIN CONTENT -->
+	<div class="uk-width-1-2">
+		<ul class="uk-subnav uk-subnav-pill" data-uk-switcher="{connect:'#my-id-one', animation: 'slide-vertical'}">
+			<li><a href="" id="menuBookmark">Bookmarks</a></li>
+			<li><a href="" id="menuImport">Import</a></li>
+		</ul>
+	</div>
+	<div class="uk-width-1-2">
+		<div class="uk-panel" data-bind="visible: Error">
+			<div class="uk-panel-badge uk-badge">!</div>
+			<h3 class="uk-panel-title">Error</h3>
+			<p data-bind="text:Error">
+			</p>
+		</div>
+		<input type="file" id="openFile" style="width:0px;height:0px">
+		<button class="uk-button" onclick="$('#openFile').click()">Import</button>
+		<button data-bind="click:SaveBookmarks" class="uk-button uk-button-danger">Save</button>
+		<button data-bind="click:LoadBookmarks" class="uk-button uk-button-primary">Load</button>
+	</div>
+</div>
+<div class="uk-grid"><!-- MAIN CONTENT -->
+	<div class="uk-width-1-1">
+		<div> <!-- Data -->
+			<ul id="my-id-one" class="uk-switcher">
+				<li><!-- BOOKMARKS -->
+					<div class="uk-grid"><!-- MAIN CONTENT -->
+						<div class="uk-width-1-2">
+							<input type="text"  placeholder="Search text here" class="uk-form-success"  data-bind="event: {keypress: onSearchBookmarks}">
+						</div>
+						<div class="uk-width-1-2">
+							bookmarks can be saved with password or without.<br>
+							once file saved with password ,password cant be removed - and will required when loading or saving<br>
+							when edited ,changes are immediate<br>
+						</div>
+					</div>
+					<div class="uk-grid"><!-- TABLE CONTENT -->
+						<div class="uk-width-1-1">
+							<div style="overflow:auto; height:80%;width:100%;margin:10px">
+									<ul class="uk-subnav uk-subnav-pill" data-uk-switcher="{connect:'#my-id-two', animation: 'slide-vertical'}" 
+										data-bind="foreach: $root.Category">
+										<li><a href="" data-bind="click:$root.getCategory(label),attr: { id:$root.getCategoryId(label) }"><span data-bind="text: label"></span></a></li>
+									</ul>
+									<ul id="my-id-two" class="uk-switcher" data-bind="foreach: $root.Category">
+										<li><!-- Load -->
+											<table>
+												<tbody data-bind="foreach: $root.Items">
+													<tr>
+														<td valign="top">
+															<a data-bind="attr:{href:href}" target="_tab"><span data-bind="text: title"></span></a>
+															<a href="#" class="uk-icon-justify uk-icon-edit" data-bind="click:$root.EditItem.bind($data,$data);"></a>
+															<table  data-bind="visible: visible">
+																<thead>
+																	<tr data-bind="foreach: $root.BColumns">
+																		<th>
+																			<span data-bind="text: name"></span>
+																		</th>
+																	</tr>
+																</thead>
+																<tbody>
+																<tr  align="left" data-bind="foreach: $root.BColumns">
+																	<td valign="top">
+																		<div data-bind="if: type==0">
+																			<input type="text" data-bind="value: $parent[name]">
+																		</div>
+																		<div data-bind="if: type==1">
+																			<input type="text" data-bind="value: $parent[name]">		
+																		</div>
+																		<div data-bind="if: type==2">
+																			<textarea data-bind="textInput: $parent[name]" rows="3" cols="30">
+																			</textarea>
+																		</div>
+																	</td>
+																</tr>
+																</tbody>
+															</table>
+														</td>
+													</tr>
+												</tbody>
+											</table>										
+										</li>
+									</ul>
+							</div>
+						</div>
+					</div>	
+				</li>
+				<li><!-- Load -->
+					<div class="uk-grid"><!-- MAIN CONTENT -->
+						<div class="uk-width-1-2">
+							<input type="text"  placeholder="Search text here" class="uk-form-success"  data-bind="event: {keypress: onSearch}">
+						</div>
+						<div class="uk-width-1-2">
+							Import bookmark html file ,which exported from chrome or firefox<br>
+							item can be added to multiple categories,separated by comma - not multiple copies,only one item but assigned to many categories<br>
+							when edited ,changes are immediate<br>
+						</div>
+					</div>
+					<div class="uk-grid"><!-- TABLE CONTENT -->
+						<div class="uk-width-1-1">
+							<div style="overflow:auto; height:80%;width:100%;margin:10px">
+							<table>
+								<thead>
+									<tr data-bind="foreach: Columns">
+										<th >
+											<span data-bind="text: name"></span>
+										</th>
+									</tr>
+								</thead>
+								<tbody data-bind="foreach: Rows">
+									<tr  data-bind="foreach: $root.Columns">
+										<td valign="top">
+											<div data-bind="if: type==0">
+												<input type="text" data-bind="value: $parent[name]">
+											</div>
+											<div data-bind="if: type==1">
+												<input type="text" data-bind="value: $parent[name],event: {keypress: $root.onCategory.bind($parent,$parent)},ko_autocomplete: { source: $root.Category(), select: $root.setCategory.bind($data,$parent) }">		
+											</div>
+											<div data-bind="if: type==2">
+												<textarea data-bind="textInput: $parent[name]" rows="3" cols="30">
+												</textarea>
+											</div>
+										</td>
+									</tr>
+								</tbody>
+							</table>
+							</div>
+							<div class="pagination pull-right" data-bind="visible:Rows().length>0">
+								<ul class="uk-pagination">
+									<li data-bind="disabled:!CurrentPage">
+										 <a href="#" data-bind="click: prevPage()" class="uk-pagination-previous"><span>«</span></a>
+									</li>
+									<li data-bind="foreach: Pages">
+										<a href="#" data-bind="click: $root.setPage.bind($data,$data),text:index+1,css:{'uk-active':$root.activePage($data)}"></a>
+									</li>								 
+									<li data-bind="disabled:PagesCount<=CurrentPage">
+										<a href="#" data-bind="click: nextPage()" class="uk-pagination-next"><span>»</span></a>
+									</li>
+								</ul>
+							</div>
+
+						</div>
+					</div>	
+				</li>
+			</ul>
+		</div>
+	</div>
+</div>
+
+
+	<script>
+	/*
+	
+	http://caragulak.nsupdate.info/proj/bookmarks/index.html
+	
+	todo :
+		loading...
+		remove
+	*/
+	var Crypt = new Crypt();
+	var db = new ArrayDB();
+	function readUTF8String(bytes) {
+	  var ix = 0;
+
+	  if (bytes.slice(0, 3) == "\xEF\xBB\xBF") {
+		ix = 3;
+	  }
+
+	  var string = "";
+	  for (; ix < bytes.length; ix++) {
+		var byte1 = bytes[ix].charCodeAt(0);
+		if (byte1 < 0x80) {
+		  string += String.fromCharCode(byte1);
+		} else if (byte1 >= 0xC2 && byte1 < 0xE0) {
+		  var byte2 = bytes[++ix].charCodeAt(0);
+		  string += String.fromCharCode(((byte1 & 0x1F) << 6) + (byte2 & 0x3F));
+		} else if (byte1 >= 0xE0 && byte1 < 0xF0) {
+		  var byte2 = bytes[++ix].charCodeAt(0);
+		  var byte3 = bytes[++ix].charCodeAt(0);
+		  string += String.fromCharCode(((byte1 & 0xFF) << 12) + ((byte2 & 0x3F) << 6) + (byte3 & 0x3F));
+		} else if (byte1 >= 0xF0 && byte1 < 0xF5) {
+		  var byte2 = bytes[++ix].charCodeAt(0);
+		  var byte3 = bytes[++ix].charCodeAt(0);
+		  var byte4 = bytes[++ix].charCodeAt(0);
+		  var codepoint = ((byte1 & 0x07) << 18) + ((byte2 & 0x3F) << 12) + ((byte3 & 0x3F) << 6) + (byte4 & 0x3F);
+		  codepoint -= 0x10000;
+		  string += String.fromCharCode(
+			(codepoint >> 10) + 0xD800, (codepoint & 0x3FF) + 0xDC00
+		  );
+		}
+	  }
+
+	  return string;
+	}
+	(function(Date) {
+    if (!Date.prototype.toStr) {
+        Date.prototype.toStr = function() {
+            function pad(n) {
+                return n < 10 ? '0' + n : n;
+            }
+            return pad(this.getUTCDate()) +'/'+ pad(this.getUTCMonth() + 1) + ' ' + pad(this.getUTCHours()) + ':' + pad(this.getUTCMinutes());
+        };
+    }
+	}(Date));
+	function zipData(files,onfinish,name){
+		// create div = data;
+		var zip = new JSZip();
+		for(var i=0;i<files.length;i++){
+			var file = files[i];
+			switch(file.type){
+				case 'json':
+					zip.file(file.name, JSON.stringify(file.content));
+					break;
+				default:
+					zip.file(file.name,file.content);
+					break;
+			}
+		}
+		
+		zip.generateAsync({compression:'DEFLATE',type:"blob"}).then(function (blob) {
+			saveAs(blob, (name ? name : 's_bookmarks_')+new Date().toStr()+'.zip');
+			if(onfinish) onfinish();
+		});
+	}
+	ko.bindingHandlers.ko_autocomplete = {
+		init: function (element, params) {
+			$(element).autocomplete(params());
+		},
+		update: function (element, params) {
+			$(element).autocomplete("option", "source", params().source);
+		}
+	};
+	var MainModel = function() {
+		var self = this;
+		var tableType;
+		var cols = [];
+		var rows = [];
+		var pages;
+		self.EditItem = function(item){
+			item.visible(!item.visible());
+		};
+		self.Loading = function(show){
+			if(!show){
+				var h = setTimeout(function(){
+					clearTimeout(h);
+					$('#dynamicDialog').hide();
+				},100);
+			}
+			else{
+				$('#dynamicDialog').show();
+				$('.dialogWrapper').css({
+					top  : Math.max(0, (($(window).height() - $('.dialogWrapper').outerHeight()) / 2) + $(window).scrollTop()) + "px",
+					left : Math.max(0, (($(window).width() - $('.dialogWrapper').outerWidth()) / 2) + $(window).scrollLeft()) + "px"
+				});
+				
+				$("#dialogContent").find('#btn_close').on('click',function(){
+					//self.SaveDialog('close');
+				});
+			}
+		};
+		
+		self.Loading(true);
+		
+		self.Error = ko.observable();
+		self.Category = ko.observableArray([]);	
+		self.SearchBookmark = ko.observable();
+		self.Items = ko.observableArray([]);		
+		function setError(err_id){
+			switch(err_id){
+				case 1:
+					self.Error('Invalid Password!');
+					break;
+				default:
+					self.Error(false);
+					break;
+			}
+		}
+		var bookmarks = {
+			Label : null,
+			config : {
+				password : false,
+				id : 1,
+				items : {},
+				category :{}
+			},
+			update : function(){
+				var that = this;
+				self.Category.removeAll();
+				that.Label = null;
+				var search = self.SearchBookmark();
+				for(var c in that.config.category){
+					// filter
+					if(that.category_filter(c,search)){
+						if(!that.Label) that.Label = c;
+						self.Category.push({
+							label:c,
+							value:c
+						});
+					}
+				}
+				//console.log('bookmarks',this.config,self.Category());
+				$('#category_'+that.Label).click();
+			},
+			category_filter : function(category,search){
+				var arr = this.config.category[category]  || [];
+				console.info('category_filter',category,search,arr.length);
+				var n = 0;
+				for(var i=0;i<arr.length;i++){
+					var item = this.config.items[arr[i]];
+					if(item){
+						if(search && category.indexOf(search)<0){
+							var visible = 
+								(item.href() && item.href().indexOf(search)>-1) ||
+								(item.title() && item.title().indexOf(search)>-1) ||
+								(item.description() && item.description().indexOf(search)>-1);
+							if(visible) n++;
+							item.filltered(visible);
+						}else{
+							n++;
+							item.filltered(true);
+						}
+					}
+				}
+				return n>0;
+			},
+			exist : function(href){
+				for(var i in this.config.items){
+					if(this.config.items[i].href().indexOf(href)>=0) return true;
+				}
+				return false;
+			},
+			add : function(item,category){
+				var r = {
+					id : this.config.id++,
+					href : ko.observable(item.href()),
+					title : ko.observable(item.title()),
+					description : ko.observable(item.description())
+				};
+				this.config.items[r.id] = r;
+				for(var i=0;i<category.length;i++){
+					if(!this.config.category[category[i]]) this.config.category[category[i]] = [];
+					this.config.category[category[i]].push(r.id);	
+				}
+
+				this.update();				
+			},
+			get : function(category){
+				self.Items.removeAll();
+				var arr = this.config.category[category]  || [];
+				for(var i=0;i<arr.length;i++){
+					var item = this.config.items[arr[i]];
+					if(item && item.filltered()){
+						item.visible = ko.observable();
+						self.Items.push(item);
+					}
+				}
+			},
+			getCoinfig  : function(){
+				var Items = {};
+				var list = this.config.items;
+				for(var i in list){
+					var item = list[i];
+					Items[i] = {
+						id : item.id,
+						href : item.href(),
+						title : item.title(),
+						description : item.description()
+					};
+				}
+				var set = {
+					password : this.config.password,
+					id : this.config.id,
+					content : JSON.stringify(this.config.category),
+					items : JSON.stringify(Items)
+				};
+				var password;
+				var md5;
+				// get password
+				password = prompt("Please enter your password", "");
+				if(password){
+					md5 = Crypt.HASH.md5(password).toString();
+				}
+				if(set.password){
+					if(!md5 || set.password != md5.substr(12, 16)){
+						setError(1);
+						return null;
+					}
+				}else if(md5){
+					set.password = md5.substr(12, 16);					
+				}
+				set.md5 = md5;
+				return set;
+			},
+			save : function(){
+				setError(0);
+
+				var files = [];
+				var conf = bookmarks.getCoinfig();
+				if(!conf) return;
+				var md5 = conf.md5;
+				delete conf.md5;
+				var file = {
+					type : 'json',
+					name : 'bookmarks.json',
+					content : conf
+				};
+				console.info('md5',md5,file.content); 
+				if(md5){
+					file.content.content = Crypt.AES.encrypt(file.content.content, md5);  
+					file.content.items = Crypt.AES.encrypt(file.content.items, md5);  
+				}
+				console.info('save',file,this.config); 
+				files.push(file);
+				zipData(files,function(){
+					//self.Loading(false);	
+				});
+			},
+			load : function(content){
+				setError(0);
+				var conf = jQuery.parseJSON( content );
+				if(conf.password){
+					var password;//import password
+					password = prompt("Please enter your password", "");
+					var md5 = Crypt.HASH.md5(password).toString();
+					//if(conf.password == md5.substr(12, 16))
+					{
+						conf.content = Crypt.AES.decrypt(conf.content, md5);  
+						conf.items = Crypt.AES.decrypt(conf.items, md5);  
+					}					
+				}
+				this.config.password = conf.password;
+				this.config.id = conf.id;
+				this.config.category = jQuery.parseJSON( conf.content ) || {};
+				var list = jQuery.parseJSON( conf.items ) || {};
+				var Items = {};
+				for(var i in list){
+					var item = list[i];
+					Items[i] = {
+						id : item.id,
+						href : ko.observable(item.href),
+						title : ko.observable(item.title),
+						description : ko.observable(item.description),
+						filltered : ko.observable(true)
+					};
+				}
+				this.config.items = Items;
+				console.info('load',conf,this.config); 
+				this.update();
+				$('#menuBookmark').click();
+				self.Loading(false);
+			}			
+		};
+		self.getCategoryId = function(label){
+			return 'category_'+label;
+		};
+		self.getCategory = function(label){
+			bookmarks.get(label);
+		};
+		self.SearchWord = ko.observable();
+		self.Rows = ko.observableArray([]);		
+		self.Pages = ko.observableArray([]);
+		self.Columns = ko.observableArray([]);
+		self.BColumns = ko.observableArray([]);
+		
+		function init(){
+			self.SaveBookmarks = function(){
+				bookmarks.save();
+			};
+			self.LoadBookmarks = function(){
+				$('#openFile').click();
+			};
+			self.Columns.push({
+				name:'href',
+				type:0
+			});
+			self.Columns.push({
+				name:'title',
+				type:0
+			});
+			self.Columns.push({
+				name:'category',
+				type:1
+			});		
+			self.Columns.push({
+				name:'description',
+				type:2
+			});		
+			self.BColumns.push({
+				name:'href',
+				type:0
+			});
+			self.BColumns.push({
+				name:'title',
+				type:1
+			});
+			self.BColumns.push({
+				name:'description',
+				type:2
+			});
+		}
+		self.addToBookmarks = function(item,category){
+			var c = category.split(',');
+			item.handled(true);
+			bookmarks.add(item,category.split(','));
+			self.groupToPages();
+		}
+		self.onCategory = function(item,col,e){
+			if(e.keyCode === 13){
+				var key = e.target.value;
+				self.addToBookmarks(item,key);
+			}			
+			return true;
+		}
+		self.setCategory = function(item,a,b){
+			//console.info('item',item,b.item);
+			self.addToBookmarks(item,b.item.label)
+		};
+		/* TABLE FUNCTION : START */
+		var fileList = { 
+			json : null
+		};
+		self.activePage = function(item){
+			return item.active;
+		};		
+		self.groupToPages = function(refresh){
+			self.Rows.removeAll();
+			self.Pages.removeAll();
+			if(!refresh){
+				var search = self.SearchWord();
+
+				pages = db.groupToPages(rows,20,function(row){ 
+					if(row.handled()) return false;
+					if(search){
+						if(row.href().indexOf(search)>=0) return true;
+						if(row.title().indexOf(search)>=0) return true;
+						return false;
+					}
+					return true; 
+				});
+			}
+			var cpage = pages.pages[pages.currentPage];
+			console.info('pages.currentPage',pages.currentPage,cpage,pages);
+			if(!cpage) return ;
+			for(var i=0;i<cpage.length;i++) self.Rows.push(rows[cpage[i]]);
+
+			var range = pages.range(10);
+			for(var i=0;i<range.length;i++) self.Pages.push(range[i]);
+		};
+		self.CurrentPage = function() {
+			return pages ? pages.currentPage : 0;
+		};
+		self.PagesCount = function() {
+			return pages ? pages.pages.length-1 : 0;
+		};
+		self.prevPage = function () {
+			if (pages && pages.currentPage > 0) {
+				pages.currentPage--;
+				self.groupToPages(true);
+			}
+		};    
+		self.nextPage = function () {
+			if (pages && pages.currentPage < pages.pages.length - 1) {
+				pages.currentPage++;
+				self.groupToPages(true);
+			}
+		};    
+		self.setPage = function (item) {
+			pages.currentPage = item.index;
+			self.groupToPages(true);
+		};
+		/* TABLE FUNCTION : END */
+		self.onSearchBookmarks =  function(d,e){
+			if(e.keyCode === 13){
+				var key = e.target.value;
+				self.SearchBookmark(key);
+				self.Loading(true);
+
+				ko.tasks.schedule(function () {
+					bookmarks.update();
+					self.Loading(false);
+
+				});
+			}			
+			return true;
+		}
+		self.onSearch = function(d,e){
+			if(e.keyCode === 13){
+				var key = e.target.value;
+				self.SearchWord(key);
+				self.Loading(true);
+				//console.info('onSearch',key,self.SearchWord());
+				ko.tasks.schedule(function () {
+				   self.groupToPages();
+				   self.Loading(false);
+				});
+			}			
+			return true;
+		}
+		/* FILE FUNCTION : START */
+		self.LoadZip = function(f){
+			var reader = new FileReader();
+			var name = f.name;
+			reader.onload = function(e) {
+				var Zip = new JSZip();
+				Zip.loadAsync(reader.result).then(function(zip) {
+					Zip.forEach(function (relativePath, file){						
+						var ext = relativePath.substring(relativePath.lastIndexOf('.') + 1).toLowerCase();
+						//console.info("iterating over",ext, relativePath,file);
+						switch(ext){
+							case 'json':
+								fileList[ext] = {
+									ext : ext, 
+									path : relativePath
+								};								
+								break;
+						}						
+					});
+				}).then(function (zip) {
+					if(fileList.json){
+						Zip.file(fileList.json.path).async("string").then(function(content){
+							bookmarks.load(content);
+							return content;
+						});
+					}
+				});
+				
+			};
+			reader.readAsArrayBuffer(f);
+		};
+		self.LoadHtml = function(f){
+			var reader = new FileReader();
+			var name = f.name;
+			reader.onload = function(e) {
+				rows = [];
+				var data = readUTF8String(e.target.result);
+				var wb = $(data);
+				if(wb){
+					function handle_dl(elm,root){
+						var links = elm.find('A');
+						for(var i=0;i<links.length;i++){
+							if(bookmarks.exist($(links[i]).attr('href'))) continue;
+							rows.push({
+								handled : ko.observable(false),
+								href : ko.observable($(links[i]).attr('href')),
+								title : ko.observable($(links[i]).text()),
+								description:ko.observable(),
+								category : ko.observable()
+							});
+						}
+						self.SearchWord(null);
+						self.groupToPages();
+						self.Loading();
+						$('#menuImport').click();
+					}
+					handle_dl(wb,true);
+				}
+				
+			};
+			reader.readAsBinaryString(f);
+			
+		};
+		var field = document.getElementById('openFile');
+		field.onchange = function (event) {
+			fileList = { 
+				json : null
+			};
+
+			if (typeof (FileReader) == "undefined") {
+				 return;
+			}
+			event.stopPropagation();
+			event.preventDefault();
+			var files = event.target.files;
+			console.info('files',files); 
+			var fhandle = files[0];
+			var filePath = fhandle.name;
+			var extn = filePath.substring(filePath.lastIndexOf('.') + 1).toLowerCase();
+			console.info('extn',fhandle,extn); 
+			self.Loading(true);
+
+			switch(extn){
+				case 'zip':
+					self.LoadZip(fhandle);
+					break;
+				case 'html':
+					self.LoadHtml(fhandle);
+					break;
+				default:
+					self.Loading();
+					break;
+			}
+		};
+		/* FILE FUNCTION : END */
+		init();
+		self.Loading();
+
+	};
+	
+	ko.applyBindings(new MainModel());
+
+	</script>
+  </body>
+</html>
